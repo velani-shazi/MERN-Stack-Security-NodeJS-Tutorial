@@ -383,18 +383,96 @@ app.get('/api/users',
 );
 
 
-// ✅ SECURITY: search user
-app.get('/api/users/search', async (req, res) => {
-  // Build safe query with only allowed fields
-  const searchQuery = {};
-  
-  if (req.query.username && typeof req.query.username === 'string') {
-    searchQuery.username = req.query.username;
+// ✅ SECURITY: Search users (admin only)
+app.get(
+  '/api/users/search',
+  authenticate,
+  authorizeAdmin,
+  [
+    query('username')
+      .optional()
+      .trim()
+      .isLength({ min: 1, max: 30 })
+      .matches(/^[a-zA-Z0-9_]+$/)
+      .withMessage('Invalid username'),
+
+    query('email')
+      .optional()
+      .isEmail()
+      .normalizeEmail()
+      .withMessage('Invalid email'),
+
+    query('role')
+      .optional()
+      .isIn(['user', 'admin'])
+      .withMessage('Invalid role'),
+
+    query('page')
+      .optional()
+      .isInt({ min: 1 })
+      .toInt(),
+
+    query('limit')
+      .optional()
+      .isInt({ min: 1, max: 50 })
+      .toInt()
+  ],
+  handleValidationErrors,
+  async (req, res) => {
+    try {
+      // ✅ SECURITY: Build allowlisted query
+      const searchQuery = {};
+
+      if (req.query.username) {
+        searchQuery.username = {
+          $regex: `^${req.query.username}`,
+          $options: 'i'
+        };
+      }
+
+      if (req.query.email) {
+        searchQuery.email = req.query.email;
+      }
+
+      if (req.query.role) {
+        searchQuery.role = req.query.role;
+      }
+
+      // ✅ SECURITY: Pagination defaults
+      const page = req.query.page || 1;
+      const limit = req.query.limit || 20;
+      const skip = (page - 1) * limit;
+
+      const [users, total] = await Promise.all([
+        User.find(searchQuery)
+          .select('-password') // ✅ SECURITY: Never return password
+          .limit(limit)
+          .skip(skip)
+          .lean(),
+
+        User.countDocuments(searchQuery)
+      ]);
+
+      res.json({
+        success: true,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit)
+        },
+        users
+      });
+    } catch (error) {
+      console.error('User search error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'User search failed'
+      });
+    }
   }
-  
-  const users = await User.find(searchQuery).limit(50);
-  res.json(users);
-});
+);
+
 
 
 // ✅ SECURITY: Get user by ID with validation

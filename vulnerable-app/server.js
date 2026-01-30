@@ -101,6 +101,12 @@ app.get('/api/users', async (req, res) => {
 });
 
 // VULNERABILITY: NoSQL injection in query parameters
+app.get('/api/users/search', async (req, res) => {
+  const users = await User.find(req.query);
+  res.json(users);
+});
+
+// VULNERABILITY: NoSQL injection in query parameters
 app.get('/api/users/:id', async (req, res) => {
   try {
     // VULNERABILITY: No input validation

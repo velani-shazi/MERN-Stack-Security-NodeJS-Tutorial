@@ -382,6 +382,21 @@ app.get('/api/users',
   }
 );
 
+
+// ✅ SECURITY: search user
+app.get('/api/users/search', async (req, res) => {
+  // Build safe query with only allowed fields
+  const searchQuery = {};
+  
+  if (req.query.username && typeof req.query.username === 'string') {
+    searchQuery.username = req.query.username;
+  }
+  
+  const users = await User.find(searchQuery).limit(50);
+  res.json(users);
+});
+
+
 // ✅ SECURITY: Get user by ID with validation
 app.get('/api/users/:id',
   authenticate,

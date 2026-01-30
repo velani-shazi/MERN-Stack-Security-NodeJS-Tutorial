@@ -70,6 +70,7 @@ app.get('/api/users/search', async (req, res) => {
 # Extract all users with specific role
 curl 'http://localhost:5000/api/users/search?role=admin'
 
+# If you are using cloud hosted mongodb database like Atlas, these will not work due to cloud security protections, they should work though for local databases
 # Extract users with email containing domain
 curl 'http://localhost:5000/api/users/search?email[$regex]=@company.com'
 
